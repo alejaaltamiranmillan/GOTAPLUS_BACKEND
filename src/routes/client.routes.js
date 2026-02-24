@@ -1,20 +1,47 @@
-const express = require('express');
+const express = require("express");
 const router = express.Router();
-const clientController = require('../controllers/client.controller');
-const { verifyToken } = require('../middleware/auth.middleware');
+const Client = require("../models/Client");
+const Credit = require("../models/Credit");
+const authMiddleware = require("../middlewares/authMiddleware");
 
-// Crear cliente (admin o cobrador)
-router.post('/', verifyToken, clientController.createClient);
+router.get("/resumen", authMiddleware, async (req, res) => {
+  try {
+    const cobradorId = req.user.id;
 
-// Traer clientes por cobrador
-router.get('/cobrador/:cobradorId', verifyToken, async (req, res) => {
-  const Client = require('../models/Client');
+    // Total clientes
+    const totalClientes = await Client.countDocuments({
+      cobrador: cobradorId
+    });
 
-  const clients = await Client.find({
-    cobrador: req.params.cobradorId
-  }).populate('cobrador');
+    // Créditos pendientes del cobrador
+    const creditosPendientes = await Credit.find({
+      cobrador: cobradorId,
+      estado: "pendiente"
+    });
 
-  res.json(clients);
+    let totalPrestado = 0;
+    let totalGanancia = 0;
+
+    creditosPendientes.forEach(c => {
+      totalPrestado += c.montoPrestado;
+      totalGanancia += c.montoTotal - c.montoPrestado;
+    });
+
+    // Clientes con deuda (distintos)
+    const clientesConDeuda = new Set(
+      creditosPendientes.map(c => c.cliente.toString())
+    ).size;
+
+    res.json({
+      totalClientes,
+      clientesConDeuda,
+      totalPrestado,
+      totalGanancia
+    });
+
+  } catch (error) {
+    res.status(500).json({ message: "Error generando resumen" });
+  }
 });
 
 module.exports = router;
