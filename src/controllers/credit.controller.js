@@ -1,11 +1,11 @@
-const Credit = require('../models/Credit');
-const Client = require('../models/Client');
-const Collaborator = require('../models/Collaborator');
+const Credit = require("../models/Credit");
+const Client = require("../models/Client");
+const Collaborator = require("../models/Collaborator");
 
 // Crear crédito
 exports.createCredit = async (req, res) => {
   try {
-    const { cliente, montoPrestado } = req.body;
+    const { cliente, montoPrestado, montoTotal, fechaPago } = req.body;
 
     // Verificar si cliente existe
     const client = await Client.findById(cliente);
@@ -16,33 +16,62 @@ exports.createCredit = async (req, res) => {
     // Verificar si tiene crédito pendiente
     const creditoPendiente = await Credit.findOne({
       cliente,
-      estado: 'pendiente'
+      estado: "pendiente",
     });
 
     if (creditoPendiente) {
       return res.status(400).json({
-        message: "El cliente ya tiene un crédito pendiente"
+        message: "El cliente ya tiene un crédito pendiente",
       });
     }
 
-    // Calcular 30%
-    const montoTotal = montoPrestado * 1.3;
+    // Usar montoTotal proporcionado o calcular 30%
+    const totalFinal = montoTotal || montoPrestado * 1.3;
 
     // Crear crédito
     const newCredit = new Credit({
       montoPrestado,
-      montoTotal,
+      montoTotal: totalFinal,
       cliente,
-      cobrador: client.cobrador
+      cobrador: client.cobrador,
+      fechaPago: fechaPago || undefined,
     });
 
     await newCredit.save();
 
+    // Poblar antes de enviar
+    await newCredit.populate("cliente");
+    await newCredit.populate("cobrador");
+
     res.status(201).json({
       message: "Crédito creado correctamente",
-      credit: newCredit
+      credit: newCredit,
     });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
 
+// Obtener todos los créditos del cobrador autenticado
+exports.getAllCredits = async (req, res) => {
+  try {
+    const Collaborator = require("../models/Collaborator");
+
+    // Encontrar el collaborator asociado al usuario autenticado
+    const collaborator = await Collaborator.findOne({ user: req.user.id });
+
+    if (!collaborator) {
+      return res.status(404).json({ message: "Colaborador no encontrado" });
+    }
+
+    const credits = await Credit.find({
+      cobrador: collaborator._id,
+    })
+      .populate("cliente")
+      .populate("cobrador")
+      .sort({ createdAt: -1 });
+
+    res.json(credits);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -52,18 +81,16 @@ exports.createCredit = async (req, res) => {
 exports.getCreditsByClient = async (req, res) => {
   try {
     const credits = await Credit.find({
-      cliente: req.params.clienteId
+      cliente: req.params.clienteId,
     })
-    .populate('cliente')
-    .populate('cobrador');
+      .populate("cliente")
+      .populate("cobrador");
 
     res.json(credits);
-
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 };
-
 
 // Marcar crédito como pagado
 exports.payCredit = async (req, res) => {
@@ -74,13 +101,37 @@ exports.payCredit = async (req, res) => {
       return res.status(404).json({ message: "Crédito no encontrado" });
     }
 
-    credit.estado = 'pagado';
+    credit.estado = "pagado";
     credit.fechaPago = new Date();
 
     await credit.save();
 
-    res.json({ message: "Crédito pagado correctamente", credit });
+    await credit.populate("cliente");
+    await credit.populate("cobrador");
 
+    res.json({ message: "Crédito pagado correctamente", credit });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+// Actualizar crédito (para cambiar estado)
+exports.updateCredit = async (req, res) => {
+  try {
+    const { estado } = req.body;
+    const credit = await Credit.findByIdAndUpdate(
+      req.params.creditId,
+      { estado, fechaPago: estado === "pagado" ? new Date() : undefined },
+      { new: true },
+    )
+      .populate("cliente")
+      .populate("cobrador");
+
+    if (!credit) {
+      return res.status(404).json({ message: "Crédito no encontrado" });
+    }
+
+    res.json({ message: "Crédito actualizado", credit });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
