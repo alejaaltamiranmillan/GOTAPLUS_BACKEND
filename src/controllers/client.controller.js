@@ -1,6 +1,22 @@
 const Client = require("../models/Client");
 const Collaborator = require("../models/Collaborator");
 
+// Obtener todos los clientes (para admin)
+exports.getAllClientsAdmin = async (req, res) => {
+  try {
+    const clients = await Client.find()
+      .populate("cobrador")
+      .sort({ createdAt: -1 });
+
+    res.json(clients);
+  } catch (error) {
+    console.error("Error obteniendo clientes:", error);
+    res
+      .status(500)
+      .json({ message: "Error obteniendo clientes", error: error.message });
+  }
+};
+
 // Obtener todos los clientes del cobrador autenticado
 exports.getAllClients = async (req, res) => {
   try {
@@ -66,6 +82,7 @@ exports.createClient = async (req, res) => {
     });
 
     await newClient.save();
+    await newClient.populate("cobrador");
 
     res.status(201).json({
       message: "Cliente creado correctamente",
