@@ -52,24 +52,38 @@ exports.createCredit = async (req, res) => {
   }
 };
 
-// Obtener todos los créditos del cobrador autenticado
+// Obtener todos los créditos del cobrador autenticado o todos si es admin
 exports.getAllCredits = async (req, res) => {
   try {
     const Collaborator = require("../models/Collaborator");
+    const User = require("../models/User");
 
-    // Encontrar el collaborator asociado al usuario autenticado
-    const collaborator = await Collaborator.findOne({ user: req.user.id });
+    // Obtener el role del usuario autenticado
+    const user = await User.findById(req.user.id);
 
-    if (!collaborator) {
-      return res.status(404).json({ message: "Colaborador no encontrado" });
+    let credits;
+
+    if (user.role === "admin") {
+      // Si es admin, obtener todos los créditos
+      credits = await Credit.find()
+        .populate("cliente")
+        .populate("cobrador")
+        .sort({ createdAt: -1 });
+    } else {
+      // Si es cobrador, obtener solo sus créditos
+      const collaborator = await Collaborator.findOne({ user: req.user.id });
+
+      if (!collaborator) {
+        return res.status(404).json({ message: "Colaborador no encontrado" });
+      }
+
+      credits = await Credit.find({
+        cobrador: collaborator._id,
+      })
+        .populate("cliente")
+        .populate("cobrador")
+        .sort({ createdAt: -1 });
     }
-
-    const credits = await Credit.find({
-      cobrador: collaborator._id,
-    })
-      .populate("cliente")
-      .populate("cobrador")
-      .sort({ createdAt: -1 });
 
     res.json(credits);
   } catch (error) {
