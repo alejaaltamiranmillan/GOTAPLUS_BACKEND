@@ -22,8 +22,7 @@ const corsOptions = {
   allowedHeaders: ["Content-Type", "Authorization"],
 };
 
-app.use(cors(corsOptions));
-app.options("/(.*)", cors(corsOptions)); // ✅ Corregido
+app.use(cors(corsOptions)); // ✅ Esto solo, sin app.options(...)
 
 app.use(express.json());
 app.use("/api/users", userRoutes);
