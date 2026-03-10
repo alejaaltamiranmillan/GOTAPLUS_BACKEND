@@ -11,44 +11,40 @@ exports.getAllClientsAdmin = async (req, res) => {
     res.json(clients);
   } catch (error) {
     console.error("Error obteniendo clientes:", error);
-    res
-      .status(500)
-      .json({ message: "Error obteniendo clientes", error: error.message });
+    res.status(500).json({ message: "Error obteniendo clientes", error: error.message });
   }
 };
 
 // Obtener todos los clientes del cobrador autenticado
 exports.getAllClients = async (req, res) => {
   try {
-    const Collaborator = require("../models/Collaborator");
     const Credit = require("../models/Credit");
 
-    // Encontrar el collaborator asociado al usuario autenticado
+    console.log("USER ID:", req.user.id);
+    console.log("USER ROLE:", req.user.role);
+
     const collaborator = await Collaborator.findOne({ user: req.user.id });
 
+    console.log("COLLABORATOR:", collaborator);
+
     if (!collaborator) {
-      return res.status(404).json({ message: "Colaborador no encontrado" });
+      return res.status(404).json({ message: "Colaborador no encontrado", userId: req.user.id });
     }
 
-    // Obtener clientes del cobrador
     const clients = await Client.find({ cobrador: collaborator._id }).lean();
 
-    // Para cada cliente, verificar si tiene un crédito pendiente
     for (let client of clients) {
       const creditoPendiente = await Credit.findOne({
         cliente: client._id,
         estado: "pendiente",
       });
-
       client.tieneDeuda = creditoPendiente ? true : false;
     }
 
     res.json(clients);
   } catch (error) {
     console.error("Error obteniendo clientes:", error);
-    res
-      .status(500)
-      .json({ message: "Error obteniendo clientes", error: error.message });
+    res.status(500).json({ message: "Error obteniendo clientes", error: error.message });
   }
 };
 
@@ -59,7 +55,6 @@ exports.createClient = async (req, res) => {
 
     let cobradorId;
 
-    // Si es cobrador, se asigna automáticamente
     if (req.user.role === "cobrador") {
       const collaborator = await Collaborator.findOne({ user: req.user.id });
 
@@ -69,7 +64,6 @@ exports.createClient = async (req, res) => {
 
       cobradorId = collaborator._id;
     } else {
-      // Si es admin, debe enviar ID del cobrador
       cobradorId = cobrador;
     }
 
