@@ -12,8 +12,16 @@ const collaboratorSchema = new mongoose.Schema(
       ref: "User",
       required: true,
     },
+    tenant: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Tenant",
+      required: true
+    }
   },
-  { timestamps: true },
+  { timestamps: true }
 );
+
+// Cédula única por tenant
+collaboratorSchema.index({ cedula: 1, tenant: 1 }, { unique: true });
 
 module.exports = mongoose.model("Collaborator", collaboratorSchema);

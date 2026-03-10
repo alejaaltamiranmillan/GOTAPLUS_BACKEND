@@ -1,54 +1,51 @@
 const Client = require("../models/Client");
 const Collaborator = require("../models/Collaborator");
 
-// Obtener todos los clientes (para admin)
 exports.getAllClientsAdmin = async (req, res) => {
   try {
-    const clients = await Client.find()
+    const clients = await Client.find({ tenant: req.user.tenant })
       .populate("cobrador")
       .sort({ createdAt: -1 });
 
     res.json(clients);
   } catch (error) {
-    console.error("Error obteniendo clientes:", error);
-    res.status(500).json({ message: "Error obteniendo clientes", error: error.message });
+    res.status(500).json({ error: error.message });
   }
 };
 
-// Obtener todos los clientes del cobrador autenticado
 exports.getAllClients = async (req, res) => {
   try {
     const Credit = require("../models/Credit");
 
-    console.log("USER ID:", req.user.id);
-    console.log("USER ROLE:", req.user.role);
-
-    const collaborator = await Collaborator.findOne({ user: req.user.id });
-
-    console.log("COLLABORATOR:", collaborator);
+    const collaborator = await Collaborator.findOne({
+      user: req.user.id,
+      tenant: req.user.tenant
+    });
 
     if (!collaborator) {
-      return res.status(404).json({ message: "Colaborador no encontrado", userId: req.user.id });
+      return res.status(404).json({ message: "Colaborador no encontrado" });
     }
 
-    const clients = await Client.find({ cobrador: collaborator._id }).lean();
+    const clients = await Client.find({
+      cobrador: collaborator._id,
+      tenant: req.user.tenant
+    }).lean();
 
     for (let client of clients) {
       const creditoPendiente = await Credit.findOne({
         cliente: client._id,
         estado: "pendiente",
+        tenant: req.user.tenant
       });
       client.tieneDeuda = creditoPendiente ? true : false;
     }
 
     res.json(clients);
   } catch (error) {
-    console.error("Error obteniendo clientes:", error);
-    res.status(500).json({ message: "Error obteniendo clientes", error: error.message });
+    res.status(500).json({ error: error.message });
   }
 };
 
-// Crear cliente
 exports.createClient = async (req, res) => {
   try {
     const { nombre, cedula, direccion, celular, cobrador } = req.body;
@@ -56,7 +53,10 @@ exports.createClient = async (req, res) => {
     let cobradorId;
 
     if (req.user.role === "cobrador") {
-      const collaborator = await Collaborator.findOne({ user: req.user.id });
+      const collaborator = await Collaborator.findOne({
+        user: req.user.id,
+        tenant: req.user.tenant
+      });
 
       if (!collaborator) {
         return res.status(400).json({ message: "Cobrador no encontrado" });
@@ -73,6 +73,7 @@ exports.createClient = async (req, res) => {
       direccion,
       celular,
       cobrador: cobradorId,
+      tenant: req.user.tenant
     });
 
     await newClient.save();

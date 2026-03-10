@@ -10,6 +10,7 @@ const collaboratorRoutes = require("./routes/collaborator.routes");
 const clientRoutes = require("./routes/client.routes");
 const creditRoutes = require("./routes/credit.routes");
 const dashboardRoutes = require("./routes/dashboard.routes");
+const tenantRoutes = require("./routes/tenant.routes");
 
 const corsOptions = {
   origin: [
@@ -22,14 +23,14 @@ const corsOptions = {
   allowedHeaders: ["Content-Type", "Authorization"],
 };
 
-app.use(cors(corsOptions)); // ✅ Esto solo, sin app.options(...)
-
+app.use(cors(corsOptions));
 app.use(express.json());
 app.use("/api/users", userRoutes);
 app.use("/api/collaborators", collaboratorRoutes);
 app.use("/api/clients", clientRoutes);
 app.use("/api/credits", creditRoutes);
 app.use("/api/dashboard", dashboardRoutes);
+app.use("/api/tenants", tenantRoutes);
 
 app.get("/", (req, res) => {
   res.json({ message: "API TU COBRADOR funcionando 🔥" });

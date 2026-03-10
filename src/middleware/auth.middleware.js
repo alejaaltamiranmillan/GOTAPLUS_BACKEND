@@ -9,9 +9,7 @@ exports.verifyToken = (req, res, next) => {
     }
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-
     req.user = decoded;
-
     next();
 
   } catch (error) {
@@ -22,6 +20,13 @@ exports.verifyToken = (req, res, next) => {
 exports.verifyAdmin = (req, res, next) => {
   if (req.user.role !== 'admin') {
     return res.status(403).json({ message: "Acceso solo para admin" });
+  }
+  next();
+};
+
+exports.verifySuperAdmin = (req, res, next) => {
+  if (req.user.role !== 'superadmin') {
+    return res.status(403).json({ message: "Acceso solo para superadmin" });
   }
   next();
 };

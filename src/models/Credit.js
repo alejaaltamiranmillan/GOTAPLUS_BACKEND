@@ -30,6 +30,11 @@ const creditSchema = new mongoose.Schema({
     type: String,
     enum: ['pendiente', 'pagado'],
     default: 'pendiente'
+  },
+  tenant: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Tenant',
+    required: true
   }
 }, { timestamps: true });
 

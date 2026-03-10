@@ -6,7 +6,10 @@ exports.createCredit = async (req, res) => {
   try {
     const { cliente, montoPrestado, montoTotal, fechaPago } = req.body;
 
-    const client = await Client.findById(cliente);
+    const client = await Client.findOne({
+      _id: cliente,
+      tenant: req.user.tenant
+    });
     if (!client) {
       return res.status(404).json({ message: "Cliente no encontrado" });
     }
@@ -14,6 +17,7 @@ exports.createCredit = async (req, res) => {
     const creditoPendiente = await Credit.findOne({
       cliente,
       estado: "pendiente",
+      tenant: req.user.tenant
     });
 
     if (creditoPendiente) {
@@ -30,6 +34,7 @@ exports.createCredit = async (req, res) => {
       cliente,
       cobrador: client.cobrador,
       fechaPago: fechaPago || undefined,
+      tenant: req.user.tenant
     });
 
     await newCredit.save();
@@ -48,20 +53,26 @@ exports.createCredit = async (req, res) => {
 exports.getAllCredits = async (req, res) => {
   try {
     if (req.user.role === "admin") {
-      const credits = await Credit.find()
+      const credits = await Credit.find({ tenant: req.user.tenant })
         .populate("cliente")
         .populate("cobrador")
         .sort({ createdAt: -1 });
       return res.json(credits);
     }
 
-    const collaborator = await Collaborator.findOne({ user: req.user.id });
+    const collaborator = await Collaborator.findOne({
+      user: req.user.id,
+      tenant: req.user.tenant
+    });
 
     if (!collaborator) {
       return res.status(404).json({ message: "Colaborador no encontrado" });
     }
 
-    const credits = await Credit.find({ cobrador: collaborator._id })
+    const credits = await Credit.find({
+      cobrador: collaborator._id,
+      tenant: req.user.tenant
+    })
       .populate("cliente")
       .populate("cobrador")
       .sort({ createdAt: -1 });
@@ -76,6 +87,7 @@ exports.getCreditsByClient = async (req, res) => {
   try {
     const credits = await Credit.find({
       cliente: req.params.clienteId,
+      tenant: req.user.tenant
     })
       .populate("cliente")
       .populate("cobrador");
@@ -88,7 +100,10 @@ exports.getCreditsByClient = async (req, res) => {
 
 exports.payCredit = async (req, res) => {
   try {
-    const credit = await Credit.findById(req.params.creditId);
+    const credit = await Credit.findOne({
+      _id: req.params.creditId,
+      tenant: req.user.tenant
+    });
 
     if (!credit) {
       return res.status(404).json({ message: "Crédito no encontrado" });
@@ -110,10 +125,10 @@ exports.payCredit = async (req, res) => {
 exports.updateCredit = async (req, res) => {
   try {
     const { estado } = req.body;
-    const credit = await Credit.findByIdAndUpdate(
-      req.params.creditId,
+    const credit = await Credit.findOneAndUpdate(
+      { _id: req.params.creditId, tenant: req.user.tenant },
       { estado, fechaPago: estado === "pagado" ? new Date() : undefined },
-      { new: true },
+      { new: true }
     )
       .populate("cliente")
       .populate("cobrador");
