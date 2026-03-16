@@ -37,7 +37,7 @@ exports.registerCobrador = async (req, res) => {
     const token = jwt.sign(
       { id: newUser._id, role: newUser.role, tenant: null },
       process.env.JWT_SECRET,
-      { expiresIn: "1d" }
+      { expiresIn: "1d" },
     );
 
     res.status(201).json({
@@ -57,15 +57,17 @@ exports.login = async (req, res) => {
     // Login superadmin sin código
     if (!codigo) {
       const user = await User.findOne({ username, role: "superadmin" });
-      if (!user) return res.status(400).json({ message: "Usuario no encontrado" });
+      if (!user)
+        return res.status(400).json({ message: "Usuario no encontrado" });
 
       const isMatch = await bcrypt.compare(password, user.password);
-      if (!isMatch) return res.status(400).json({ message: "Contraseña incorrecta" });
+      if (!isMatch)
+        return res.status(400).json({ message: "Contraseña incorrecta" });
 
       const token = jwt.sign(
         { id: user._id, role: user.role, tenant: null },
         process.env.JWT_SECRET,
-        { expiresIn: "1d" }
+        { expiresIn: "1d" },
       );
 
       return res.json({
@@ -75,49 +77,79 @@ exports.login = async (req, res) => {
       });
     }
 
-    // Login cobrador sin código de empresa
+    // Login cobrador sin código de empresa (busca automáticamente su tenant)
     if (codigo === "none") {
-      const user = await User.findOne({ username, role: "cobrador", tenant: null });
-      if (!user) return res.status(400).json({ message: "Usuario no encontrado" });
+      // Primero busca cobrador sin tenant
+      let user = await User.findOne({
+        username,
+        role: "cobrador",
+        tenant: null,
+      });
+
+      // Si no existe, busca en cualquier tenant (para cobradores creados por admin)
+      if (!user) {
+        user = await User.findOne({ username, role: "cobrador" });
+      }
+
+      if (!user)
+        return res.status(400).json({ message: "Usuario no encontrado" });
 
       const isMatch = await bcrypt.compare(password, user.password);
-      if (!isMatch) return res.status(400).json({ message: "Contraseña incorrecta" });
+      if (!isMatch)
+        return res.status(400).json({ message: "Contraseña incorrecta" });
 
       const token = jwt.sign(
-        { id: user._id, role: user.role, tenant: null },
+        { id: user._id, role: user.role, tenant: user.tenant },
         process.env.JWT_SECRET,
-        { expiresIn: "1d" }
+        { expiresIn: "1d" },
       );
 
       return res.json({
         message: "Login exitoso",
         token,
-        user: { id: user._id, username: user.username, role: user.role },
+        user: {
+          id: user._id,
+          username: user.username,
+          role: user.role,
+          tenant: user.tenant,
+        },
       });
     }
 
     // Login admin o cobrador con código de empresa
-    const tenant = await Tenant.findOne({ codigo: codigo.toUpperCase(), activo: true });
-    if (!tenant) return res.status(400).json({ message: "Código de empresa inválido o inactivo" });
+    const tenant = await Tenant.findOne({
+      codigo: codigo.toUpperCase(),
+      activo: true,
+    });
+    if (!tenant)
+      return res
+        .status(400)
+        .json({ message: "Código de empresa inválido o inactivo" });
 
     const user = await User.findOne({ username, tenant: tenant._id });
-    if (!user) return res.status(400).json({ message: "Usuario no encontrado" });
+    if (!user)
+      return res.status(400).json({ message: "Usuario no encontrado" });
 
     const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) return res.status(400).json({ message: "Contraseña incorrecta" });
+    if (!isMatch)
+      return res.status(400).json({ message: "Contraseña incorrecta" });
 
     const token = jwt.sign(
       { id: user._id, role: user.role, tenant: tenant._id },
       process.env.JWT_SECRET,
-      { expiresIn: "1d" }
+      { expiresIn: "1d" },
     );
 
     res.json({
       message: "Login exitoso",
       token,
-      user: { id: user._id, username: user.username, role: user.role, tenant: tenant._id },
+      user: {
+        id: user._id,
+        username: user.username,
+        role: user.role,
+        tenant: tenant._id,
+      },
     });
-
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
