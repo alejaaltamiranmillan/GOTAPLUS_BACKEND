@@ -11,6 +11,7 @@ const clientRoutes = require("./routes/client.routes");
 const creditRoutes = require("./routes/credit.routes");
 const dashboardRoutes = require("./routes/dashboard.routes");
 const tenantRoutes = require("./routes/tenant.routes");
+const initRoutes = require("./routes/init.routes");
 
 const corsOptions = {
   origin: [
@@ -26,6 +27,7 @@ const corsOptions = {
 
 app.use(cors(corsOptions));
 app.use(express.json());
+app.use("/api/init", initRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/collaborators", collaboratorRoutes);
 app.use("/api/clients", clientRoutes);
