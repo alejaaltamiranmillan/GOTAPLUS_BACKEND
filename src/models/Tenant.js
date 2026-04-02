@@ -3,10 +3,16 @@ const mongoose = require("mongoose");
 const tenantSchema = new mongoose.Schema(
   {
     nombre: { type: String, required: true },
-    codigo: { type: String, required: true, unique: true, uppercase: true },
+    codigo: {
+      type: String,
+      required: true,
+      unique: true,
+      uppercase: true,
+      trim: true,
+    },
     activo: { type: Boolean, default: true },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
 module.exports = mongoose.model("Tenant", tenantSchema);

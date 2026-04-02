@@ -32,7 +32,7 @@ exports.createTenant = async (req, res) => {
     }
 
     // Crear tenant
-    const newTenant = new Tenant({ nombre, codigo: codigo.toUpperCase() });
+    const newTenant = new Tenant({ nombre, codigo });
     await newTenant.save();
 
     res.status(201).json({
@@ -63,3 +63,6 @@ exports.toggleTenant = async (req, res) => {
       tenant,
     });
   } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
