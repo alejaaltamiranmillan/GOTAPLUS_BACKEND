@@ -2,7 +2,11 @@ const express = require("express");
 const cors = require("cors");
 require("dotenv").config();
 const connectDB = require("./config/db");
-connectDB();
+
+// Intentar conectar pero no bloquear el servidor
+connectDB().catch((err) => {
+  console.error("Error conectando a MongoDB:", err.message);
+});
 
 const app = express();
 const userRoutes = require("./routes/user.routes");
@@ -37,6 +41,10 @@ app.use("/api/tenants", tenantRoutes);
 
 app.get("/", (req, res) => {
   res.json({ message: "API TU COBRADOR funcionando 🔥" });
+});
+
+app.get("/health", (req, res) => {
+  res.status(200).json({ status: "OK", timestamp: new Date() });
 });
 
 module.exports = app;
