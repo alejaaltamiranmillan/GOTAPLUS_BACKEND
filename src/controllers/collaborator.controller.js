@@ -22,14 +22,17 @@ exports.getCollaboratorDetails = async (req, res) => {
 
     const collaborator = await Collaborator.findOne({
       _id: id,
-      tenant: req.user.tenant
+      tenant: req.user.tenant,
     }).populate("user", "username role");
 
     if (!collaborator) {
       return res.status(404).json({ message: "Cobrador no encontrado" });
     }
 
-    const clients = await Client.find({ cobrador: id, tenant: req.user.tenant });
+    const clients = await Client.find({
+      cobrador: id,
+      tenant: req.user.tenant,
+    });
     const credits = await Credit.find({ cobrador: id, tenant: req.user.tenant })
       .populate("cliente")
       .sort({ createdAt: -1 });
@@ -44,21 +47,58 @@ exports.createCollaborator = async (req, res) => {
   try {
     const { nombre, celular, direccion, cedula, username, password } = req.body;
 
-    const userExists = await User.findOne({ username, tenant: req.user.tenant });
-    if (userExists) {
-      return res.status(400).json({ message: "El usuario ya existe" });
+    // Validar campos requeridos
+    if (
+      !nombre ||
+      !celular ||
+      !direccion ||
+      !cedula ||
+      !username ||
+      !password
+    ) {
+      return res.status(400).json({
+        message: "Todos los campos son requeridos",
+      });
     }
 
-    const hashedPassword = await bcrypt.hash(password, 10);
+    // Validar que el usuario tiene un tenant
+    if (!req.user.tenant) {
+      return res.status(400).json({ message: "Usuario sin empresa asignada" });
+    }
 
+    // Verificar que el username no existe en ese tenant
+    const userExists = await User.findOne({
+      username,
+      tenant: req.user.tenant,
+    });
+    if (userExists) {
+      return res
+        .status(400)
+        .json({ message: "El usuario ya existe en esta empresa" });
+    }
+
+    // Verificar que la cédula no existe en ese tenant
+    const cedulaExists = await Collaborator.findOne({
+      cedula,
+      tenant: req.user.tenant,
+    });
+    if (cedulaExists) {
+      return res
+        .status(400)
+        .json({ message: "La cédula ya existe en esta empresa" });
+    }
+
+    // Crear usuario
+    const hashedPassword = await bcrypt.hash(password, 10);
     const newUser = new User({
       username,
       password: hashedPassword,
       role: "cobrador",
-      tenant: req.user.tenant
+      tenant: req.user.tenant,
     });
     await newUser.save();
 
+    // Crear colaborador
     const newCollaborator = new Collaborator({
       nombre,
       celular,
@@ -66,7 +106,7 @@ exports.createCollaborator = async (req, res) => {
       cedula,
       activo: true,
       user: newUser._id,
-      tenant: req.user.tenant
+      tenant: req.user.tenant,
     });
     await newCollaborator.save();
 
@@ -75,6 +115,7 @@ exports.createCollaborator = async (req, res) => {
       collaborator: newCollaborator,
     });
   } catch (error) {
+    console.error("Error en createCollaborator:", error);
     res.status(500).json({ error: error.message });
   }
 };
@@ -87,7 +128,7 @@ exports.toggleCollaborator = async (req, res) => {
     const collaborator = await Collaborator.findOneAndUpdate(
       { _id: id, tenant: req.user.tenant },
       { activo },
-      { new: true }
+      { new: true },
     ).populate("user", "username role");
 
     if (!collaborator) {
@@ -95,7 +136,9 @@ exports.toggleCollaborator = async (req, res) => {
     }
 
     res.json({
-      message: collaborator.activo ? "Cobrador habilitado" : "Cobrador deshabilitado",
+      message: collaborator.activo
+        ? "Cobrador habilitado"
+        : "Cobrador deshabilitado",
       collaborator,
     });
   } catch (error) {

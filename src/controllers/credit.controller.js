@@ -6,6 +6,19 @@ exports.createCredit = async (req, res) => {
   try {
     const { cliente, montoPrestado, montoTotal, fechaPago } = req.body;
 
+    // Validar campos requeridos
+    if (!cliente || !montoPrestado) {
+      return res.status(400).json({ 
+        message: "Cliente y monto prestado son requeridos" 
+      });
+    }
+
+    // Validar que el usuario tiene un tenant
+    if (!req.user.tenant) {
+      return res.status(400).json({ message: "Usuario sin empresa asignada" });
+    }
+
+    // Buscar cliente
     const client = await Client.findOne({
       _id: cliente,
       tenant: req.user.tenant
@@ -14,6 +27,7 @@ exports.createCredit = async (req, res) => {
       return res.status(404).json({ message: "Cliente no encontrado" });
     }
 
+    // Verificar que no haya crédito pendiente
     const creditoPendiente = await Credit.findOne({
       cliente,
       estado: "pendiente",
@@ -26,8 +40,10 @@ exports.createCredit = async (req, res) => {
       });
     }
 
+    // Calcular monto total si no se proporciona
     const totalFinal = montoTotal || montoPrestado * 1.3;
 
+    // Crear crédito
     const newCredit = new Credit({
       montoPrestado,
       montoTotal: totalFinal,
@@ -46,6 +62,7 @@ exports.createCredit = async (req, res) => {
       credit: newCredit,
     });
   } catch (error) {
+    console.error("Error en createCredit:", error);
     res.status(500).json({ error: error.message });
   }
 };
