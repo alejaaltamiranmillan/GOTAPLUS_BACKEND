@@ -50,6 +50,16 @@ exports.createClient = async (req, res) => {
   try {
     const { nombre, cedula, direccion, celular, cobrador } = req.body;
 
+    // Debug: loguear req.user
+    console.log("DEBUG createClient - req.user:", req.user);
+    console.log("DEBUG createClient - body:", req.body);
+
+    // Validar que req.user existe
+    if (!req.user) {
+      console.error("ERROR: req.user no existe en createClient");
+      return res.status(401).json({ message: "Usuario no autenticado" });
+    }
+
     // Validar que todos los campos requeridos existan
     if (!nombre || !cedula || !direccion || !celular) {
       return res.status(400).json({
@@ -126,7 +136,11 @@ exports.createClient = async (req, res) => {
       client: newClient,
     });
   } catch (error) {
-    console.error("Error en createClient:", error);
-    res.status(500).json({ error: error.message });
+    console.error("ERROR en createClient:", error.message);
+    console.error("Stack:", error.stack);
+    res.status(500).json({
+      error: error.message,
+      details: error.toString(),
+    });
   }
 };

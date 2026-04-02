@@ -8,8 +8,8 @@ exports.createCredit = async (req, res) => {
 
     // Validar campos requeridos
     if (!cliente || !montoPrestado) {
-      return res.status(400).json({ 
-        message: "Cliente y monto prestado son requeridos" 
+      return res.status(400).json({
+        message: "Cliente y monto prestado son requeridos",
       });
     }
 
@@ -21,7 +21,7 @@ exports.createCredit = async (req, res) => {
     // Buscar cliente
     const client = await Client.findOne({
       _id: cliente,
-      tenant: req.user.tenant
+      tenant: req.user.tenant,
     });
     if (!client) {
       return res.status(404).json({ message: "Cliente no encontrado" });
@@ -31,7 +31,7 @@ exports.createCredit = async (req, res) => {
     const creditoPendiente = await Credit.findOne({
       cliente,
       estado: "pendiente",
-      tenant: req.user.tenant
+      tenant: req.user.tenant,
     });
 
     if (creditoPendiente) {
@@ -50,7 +50,7 @@ exports.createCredit = async (req, res) => {
       cliente,
       cobrador: client.cobrador,
       fechaPago: fechaPago || undefined,
-      tenant: req.user.tenant
+      tenant: req.user.tenant,
     });
 
     await newCredit.save();
@@ -79,7 +79,7 @@ exports.getAllCredits = async (req, res) => {
 
     const collaborator = await Collaborator.findOne({
       user: req.user.id,
-      tenant: req.user.tenant
+      tenant: req.user.tenant,
     });
 
     if (!collaborator) {
@@ -88,7 +88,7 @@ exports.getAllCredits = async (req, res) => {
 
     const credits = await Credit.find({
       cobrador: collaborator._id,
-      tenant: req.user.tenant
+      tenant: req.user.tenant,
     })
       .populate("cliente")
       .populate("cobrador")
@@ -104,7 +104,7 @@ exports.getCreditsByClient = async (req, res) => {
   try {
     const credits = await Credit.find({
       cliente: req.params.clienteId,
-      tenant: req.user.tenant
+      tenant: req.user.tenant,
     })
       .populate("cliente")
       .populate("cobrador");
@@ -119,7 +119,7 @@ exports.payCredit = async (req, res) => {
   try {
     const credit = await Credit.findOne({
       _id: req.params.creditId,
-      tenant: req.user.tenant
+      tenant: req.user.tenant,
     });
 
     if (!credit) {
@@ -145,7 +145,7 @@ exports.updateCredit = async (req, res) => {
     const credit = await Credit.findOneAndUpdate(
       { _id: req.params.creditId, tenant: req.user.tenant },
       { estado, fechaPago: estado === "pagado" ? new Date() : undefined },
-      { new: true }
+      { new: true },
     )
       .populate("cliente")
       .populate("cobrador");
