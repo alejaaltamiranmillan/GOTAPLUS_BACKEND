@@ -154,3 +154,60 @@ exports.login = async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 };
+
+// Crear admin para un tenant
+exports.createAdmin = async (req, res) => {
+  try {
+    const { tenantCode, username, password } = req.body;
+
+    if (!tenantCode || !username || !password) {
+      return res.status(400).json({
+        message: "Código de empresa, usuario y contraseña son requeridos",
+      });
+    }
+
+    // Buscar el tenant
+    const tenant = await Tenant.findOne({
+      codigo: tenantCode.toUpperCase(),
+      activo: true,
+    });
+    if (!tenant) {
+      return res
+        .status(400)
+        .json({ message: "Empresa no encontrada o inactiva" });
+    }
+
+    // Verificar que el username no exista en ese tenant
+    const userExists = await User.findOne({
+      username: username,
+      tenant: tenant._id,
+    });
+    if (userExists) {
+      return res
+        .status(400)
+        .json({ message: "El usuario ya existe en esta empresa" });
+    }
+
+    // Crear admin
+    const hashedPassword = await bcrypt.hash(password, 10);
+    const newAdmin = new User({
+      username,
+      password: hashedPassword,
+      role: "admin",
+      tenant: tenant._id,
+    });
+    await newAdmin.save();
+
+    res.status(201).json({
+      message: "Admin creado exitosamente",
+      admin: {
+        id: newAdmin._id,
+        username: newAdmin.username,
+        role: newAdmin.role,
+        empresa: tenant.nombre,
+      },
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
