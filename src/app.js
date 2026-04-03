@@ -3,11 +3,6 @@ const cors = require("cors");
 require("dotenv").config();
 const connectDB = require("./config/db");
 
-// Intentar conectar pero no bloquear el servidor
-connectDB().catch((err) => {
-  console.error("Error conectando a MongoDB:", err.message);
-});
-
 const app = express();
 const userRoutes = require("./routes/user.routes");
 const collaboratorRoutes = require("./routes/collaborator.routes");
@@ -31,6 +26,18 @@ const corsOptions = {
 
 app.use(cors(corsOptions));
 app.use(express.json());
+
+// Middleware para asegurar conexión a MongoDB en cada request
+app.use(async (req, res, next) => {
+  try {
+    await connectDB();
+    next();
+  } catch (error) {
+    console.error("[ERROR] MongoDB connection failed:", error.message);
+    next();
+  }
+});
+
 app.use("/api/init", initRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/collaborators", collaboratorRoutes);
