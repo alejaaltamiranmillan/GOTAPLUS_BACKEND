@@ -11,6 +11,14 @@ router.get(
   collaboratorController.getAllCollaborators,
 );
 
+// Obtener cobradores con estadísticas
+router.get(
+  "/with-stats",
+  verifyToken,
+  verifyAdmin,
+  collaboratorController.getCollaboratorsWithStats,
+);
+
 // Obtener detalles de un cobrador con sus clientes y créditos
 router.get(
   "/:id",

@@ -145,3 +145,68 @@ exports.toggleCollaborator = async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 };
+
+// Obtener cobradores con estadísticas de créditos
+exports.getCollaboratorsWithStats = async (req, res) => {
+  try {
+    console.log("[DEBUG getCollaboratorsWithStats] tenant:", req.user.tenant);
+
+    const collaborators = await Collaborator.find({
+      tenant: req.user.tenant,
+    })
+      .populate("user", "username role")
+      .sort({ createdAt: -1 });
+
+    // Enriquecer cada cobrador con estadísticas
+    const collaboratorsWithStats = await Promise.all(
+      collaborators.map(async (collab) => {
+        // Obtener estadísticas de créditos
+        const credits = await Credit.find({
+          cobrador: collab._id,
+          tenant: req.user.tenant,
+        });
+
+        const pendientes = credits.filter((c) => c.estado === "pendiente");
+        const pagados = credits.filter((c) => c.estado === "pagado");
+
+        const montoPendiente = pendientes.reduce(
+          (sum, c) => sum + c.montoTotal,
+          0,
+        );
+        const montoPagado = pagados.reduce((sum, c) => sum + c.montoTotal, 0);
+
+        // Contar clientes
+        const clientesCount = await Client.countDocuments({
+          cobrador: collab._id,
+          tenant: req.user.tenant,
+        });
+
+        return {
+          id: collab._id,
+          nombre: collab.nombre,
+          cedula: collab.cedula,
+          celular: collab.celular,
+          direccion: collab.direccion,
+          activo: collab.activo,
+          username: collab.user?.username,
+          role: collab.user?.role,
+          stats: {
+            totalClientes: clientesCount,
+            totalCreditos: credits.length,
+            creditosPendientes: pendientes.length,
+            creditosPagados: pagados.length,
+            montoPendiente,
+            montoPagado,
+            montoTotal: montoPendiente + montoPagado,
+          },
+          createdAt: collab.createdAt,
+        };
+      }),
+    );
+
+    res.json(collaboratorsWithStats);
+  } catch (error) {
+    console.error("[ERROR getCollaboratorsWithStats]", error.message);
+    res.status(500).json({ error: error.message });
+  }
+};
