@@ -17,6 +17,14 @@ exports.getAllClients = async (req, res) => {
   try {
     const Credit = require("../models/Credit");
 
+    // Si es admin, devolver todos los clientes del tenant
+    if (req.user.role === "admin") {
+      const clients = await Client.find({ tenant: req.user.tenant })
+        .populate("cobrador")
+        .sort({ createdAt: -1 });
+      return res.json(clients);
+    }
+
     const collaborator = await Collaborator.findOne({
       user: req.user.id,
       tenant: req.user.tenant,
