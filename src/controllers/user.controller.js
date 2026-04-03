@@ -370,3 +370,46 @@ exports.createAdmin = async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 };
+
+exports.getAllAdmins = async (req, res) => {
+  try {
+    console.log("[DEBUG getAllAdmins] Request received");
+    console.log("[DEBUG getAllAdmins] req.user:", req.user);
+
+    const admins = await User.find({ role: "admin" }).select(
+      "username role tenant createdAt",
+    );
+
+    console.log("[DEBUG getAllAdmins] Found admins:", admins.length);
+
+    // Enriquecer con información del tenant
+    const adminsWithTenant = await Promise.all(
+      admins.map(async (admin) => {
+        let tenantInfo = null;
+        if (admin.tenant) {
+          tenantInfo = await Tenant.findById(admin.tenant).select(
+            "nombre codigo",
+          );
+        }
+        return {
+          id: admin._id,
+          username: admin.username,
+          role: admin.role,
+          tenant: admin.tenant,
+          empresa: tenantInfo?.nombre || "N/A",
+          codigo: tenantInfo?.codigo || "N/A",
+          createdAt: admin.createdAt,
+        };
+      }),
+    );
+
+    console.log("[DEBUG getAllAdmins] Returning admins with tenant info");
+    res.json(adminsWithTenant);
+  } catch (error) {
+    console.error(
+      "[ERROR getAllAdmins] Error obtaining admins:",
+      error.message,
+    );
+    res.status(500).json({ error: error.message });
+  }
+};

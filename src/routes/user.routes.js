@@ -24,4 +24,12 @@ router.post(
   userController.createAdmin,
 );
 
+// Get all admins
+router.get(
+  "/admins",
+  verifyToken,
+  verifySuperAdmin,
+  userController.getAllAdmins,
+);
+
 module.exports = router;
