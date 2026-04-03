@@ -82,6 +82,7 @@ exports.loginAdmin = async (req, res) => {
       return res.json({
         message: "Login exitoso",
         token,
+        role: user.role,
         user: {
           id: user._id,
           username: user.username,
@@ -126,6 +127,8 @@ exports.loginAdmin = async (req, res) => {
     res.json({
       message: "Login exitoso",
       token,
+      role: user.role,
+      tenant: tenant._id,
       user: {
         id: user._id,
         username: user.username,
@@ -191,6 +194,7 @@ exports.loginCobrador = async (req, res) => {
     res.json({
       message: "Login exitoso",
       token,
+      role: user.role,
       user: {
         id: user._id,
         username: user.username,
