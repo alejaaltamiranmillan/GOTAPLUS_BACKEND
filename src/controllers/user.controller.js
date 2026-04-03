@@ -50,6 +50,159 @@ exports.registerCobrador = async (req, res) => {
   }
 };
 
+exports.loginAdmin = async (req, res) => {
+  try {
+    const { username, password, codigo } = req.body;
+
+    // Validar campos requeridos
+    if (!username || !password) {
+      return res.status(400).json({ 
+        message: "Usuario y contraseña son requeridos" 
+      });
+    }
+
+    // SUPERADMIN: login sin código
+    if (!codigo) {
+      const user = await User.findOne({ username, role: "superadmin" });
+      if (!user) {
+        return res.status(400).json({ message: "Usuario no encontrado" });
+      }
+
+      const isMatch = await bcrypt.compare(password, user.password);
+      if (!isMatch) {
+        return res.status(400).json({ message: "Contraseña incorrecta" });
+      }
+
+      const token = jwt.sign(
+        { id: user._id, role: user.role, tenant: null },
+        process.env.JWT_SECRET,
+        { expiresIn: "1d" }
+      );
+
+      return res.json({
+        message: "Login exitoso",
+        token,
+        user: { 
+          id: user._id, 
+          username: user.username, 
+          role: user.role 
+        },
+      });
+    }
+
+    // ADMIN: login con código de empresa
+    const tenant = await Tenant.findOne({
+      codigo: codigo.toUpperCase(),
+      activo: true,
+    });
+    if (!tenant) {
+      return res.status(400).json({ 
+        message: "Código de empresa inválido o inactivo" 
+      });
+    }
+
+    const user = await User.findOne({ 
+      username, 
+      tenant: tenant._id,
+      role: "admin"
+    });
+    if (!user) {
+      return res.status(400).json({ message: "Usuario no encontrado en esta empresa" });
+    }
+
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) {
+      return res.status(400).json({ message: "Contraseña incorrecta" });
+    }
+
+    const token = jwt.sign(
+      { id: user._id, role: user.role, tenant: tenant._id },
+      process.env.JWT_SECRET,
+      { expiresIn: "1d" }
+    );
+
+    res.json({
+      message: "Login exitoso",
+      token,
+      user: {
+        id: user._id,
+        username: user.username,
+        role: user.role,
+        tenant: tenant._id,
+        empresa: tenant.nombre
+      },
+    });
+  } catch (error) {
+    console.error("Error en loginAdmin:", error.message);
+    res.status(500).json({ error: error.message });
+  }
+};
+
+exports.loginCobrador = async (req, res) => {
+  try {
+    const { username, password } = req.body;
+
+    // Validar campos requeridos
+    if (!username || !password) {
+      return res.status(400).json({ 
+        message: "Usuario y contraseña son requeridos" 
+      });
+    }
+
+    // Buscar cobrador sin tenant
+    let user = await User.findOne({
+      username,
+      role: "cobrador",
+      tenant: null,
+    });
+
+    // Si no existe sin tenant, busca en cualquier tenant (cobrador creado por admin)
+    if (!user) {
+      user = await User.findOne({ 
+        username, 
+        role: "cobrador" 
+      });
+    }
+
+    if (!user) {
+      return res.status(400).json({ message: "Usuario no encontrado" });
+    }
+
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) {
+      return res.status(400).json({ message: "Contraseña incorrecta" });
+    }
+
+    // Obtener datos del tenant si existe
+    let empresaNombre = null;
+    if (user.tenant) {
+      const tenant = await Tenant.findById(user.tenant);
+      empresaNombre = tenant?.nombre;
+    }
+
+    const token = jwt.sign(
+      { id: user._id, role: user.role, tenant: user.tenant },
+      process.env.JWT_SECRET,
+      { expiresIn: "1d" }
+    );
+
+    res.json({
+      message: "Login exitoso",
+      token,
+      user: {
+        id: user._id,
+        username: user.username,
+        role: user.role,
+        tenant: user.tenant,
+        empresa: empresaNombre
+      },
+    });
+  } catch (error) {
+    console.error("Error en loginCobrador:", error.message);
+    res.status(500).json({ error: error.message });
+  }
+};
+
 exports.login = async (req, res) => {
   try {
     const { username, password, codigo } = req.body;

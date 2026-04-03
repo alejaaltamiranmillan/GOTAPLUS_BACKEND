@@ -1,4 +1,4 @@
-const jwt = require('jsonwebtoken');
+const jwt = require("jsonwebtoken");
 
 exports.verifyToken = (req, res, next) => {
   try {
@@ -13,10 +13,11 @@ exports.verifyToken = (req, res, next) => {
     console.log("DEBUG: Token decodificado:", decoded);
     req.user = decoded;
     return next();
-
   } catch (error) {
     console.error("ERROR en verifyToken:", error.message);
-    return res.status(401).json({ message: "Token inválido", error: error.message });
+    return res
+      .status(401)
+      .json({ message: "Token inválido", error: error.message });
   }
 };
 
@@ -25,8 +26,8 @@ exports.verifyAdmin = (req, res, next) => {
     console.error("ERROR: req.user no existe en verifyAdmin");
     return res.status(401).json({ message: "Usuario no autenticado" });
   }
-  
-  if (req.user.role !== 'admin') {
+
+  if (req.user.role !== "admin") {
     return res.status(403).json({ message: "Acceso solo para admin" });
   }
   return next();
@@ -37,8 +38,8 @@ exports.verifySuperAdmin = (req, res, next) => {
     console.error("ERROR: req.user no existe en verifySuperAdmin");
     return res.status(401).json({ message: "Usuario no autenticado" });
   }
-  
-  if (req.user.role !== 'superadmin') {
+
+  if (req.user.role !== "superadmin") {
     return res.status(403).json({ message: "Acceso solo para superadmin" });
   }
   return next();
