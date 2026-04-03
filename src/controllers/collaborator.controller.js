@@ -182,7 +182,7 @@ exports.getCollaboratorsWithStats = async (req, res) => {
         });
 
         return {
-          id: collab._id,
+          _id: collab._id,
           nombre: collab.nombre,
           cedula: collab.cedula,
           celular: collab.celular,
