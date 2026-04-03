@@ -19,10 +19,26 @@ exports.getAllClients = async (req, res) => {
 
     // Si es admin, devolver todos los clientes del tenant
     if (req.user.role === "admin") {
-      const clients = await Client.find({ tenant: req.user.tenant })
-        .populate("cobrador")
-        .sort({ createdAt: -1 });
-      return res.json(clients);
+      try {
+        console.log("[DEBUG] Admin request - tenant:", req.user.tenant);
+        const clients = await Client.find({ tenant: req.user.tenant })
+          .populate("cobrador", "nombre cedula celular")
+          .sort({ createdAt: -1 })
+          .lean();
+
+        console.log("[DEBUG] Admin clients found:", clients.length);
+        return res.json(clients);
+      } catch (populateError) {
+        console.error(
+          "[ERROR] Error poblando cobradores:",
+          populateError.message,
+        );
+        // Si falla populate, intentar sin populate
+        const clients = await Client.find({ tenant: req.user.tenant })
+          .sort({ createdAt: -1 })
+          .lean();
+        return res.json(clients);
+      }
     }
 
     const collaborator = await Collaborator.findOne({
@@ -50,6 +66,7 @@ exports.getAllClients = async (req, res) => {
 
     res.json(clients);
   } catch (error) {
+    console.error("[ERROR] getAllClients error:", error.message, error.stack);
     res.status(500).json({ error: error.message });
   }
 };
