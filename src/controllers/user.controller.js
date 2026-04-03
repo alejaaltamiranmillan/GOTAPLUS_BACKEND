@@ -56,8 +56,8 @@ exports.loginAdmin = async (req, res) => {
 
     // Validar campos requeridos
     if (!username || !password) {
-      return res.status(400).json({ 
-        message: "Usuario y contraseña son requeridos" 
+      return res.status(400).json({
+        message: "Usuario y contraseña son requeridos",
       });
     }
 
@@ -76,16 +76,16 @@ exports.loginAdmin = async (req, res) => {
       const token = jwt.sign(
         { id: user._id, role: user.role, tenant: null },
         process.env.JWT_SECRET,
-        { expiresIn: "1d" }
+        { expiresIn: "1d" },
       );
 
       return res.json({
         message: "Login exitoso",
         token,
-        user: { 
-          id: user._id, 
-          username: user.username, 
-          role: user.role 
+        user: {
+          id: user._id,
+          username: user.username,
+          role: user.role,
         },
       });
     }
@@ -96,18 +96,20 @@ exports.loginAdmin = async (req, res) => {
       activo: true,
     });
     if (!tenant) {
-      return res.status(400).json({ 
-        message: "Código de empresa inválido o inactivo" 
+      return res.status(400).json({
+        message: "Código de empresa inválido o inactivo",
       });
     }
 
-    const user = await User.findOne({ 
-      username, 
+    const user = await User.findOne({
+      username,
       tenant: tenant._id,
-      role: "admin"
+      role: "admin",
     });
     if (!user) {
-      return res.status(400).json({ message: "Usuario no encontrado en esta empresa" });
+      return res
+        .status(400)
+        .json({ message: "Usuario no encontrado en esta empresa" });
     }
 
     const isMatch = await bcrypt.compare(password, user.password);
@@ -118,7 +120,7 @@ exports.loginAdmin = async (req, res) => {
     const token = jwt.sign(
       { id: user._id, role: user.role, tenant: tenant._id },
       process.env.JWT_SECRET,
-      { expiresIn: "1d" }
+      { expiresIn: "1d" },
     );
 
     res.json({
@@ -129,7 +131,7 @@ exports.loginAdmin = async (req, res) => {
         username: user.username,
         role: user.role,
         tenant: tenant._id,
-        empresa: tenant.nombre
+        empresa: tenant.nombre,
       },
     });
   } catch (error) {
@@ -144,8 +146,8 @@ exports.loginCobrador = async (req, res) => {
 
     // Validar campos requeridos
     if (!username || !password) {
-      return res.status(400).json({ 
-        message: "Usuario y contraseña son requeridos" 
+      return res.status(400).json({
+        message: "Usuario y contraseña son requeridos",
       });
     }
 
@@ -158,9 +160,9 @@ exports.loginCobrador = async (req, res) => {
 
     // Si no existe sin tenant, busca en cualquier tenant (cobrador creado por admin)
     if (!user) {
-      user = await User.findOne({ 
-        username, 
-        role: "cobrador" 
+      user = await User.findOne({
+        username,
+        role: "cobrador",
       });
     }
 
@@ -183,7 +185,7 @@ exports.loginCobrador = async (req, res) => {
     const token = jwt.sign(
       { id: user._id, role: user.role, tenant: user.tenant },
       process.env.JWT_SECRET,
-      { expiresIn: "1d" }
+      { expiresIn: "1d" },
     );
 
     res.json({
@@ -194,7 +196,7 @@ exports.loginCobrador = async (req, res) => {
         username: user.username,
         role: user.role,
         tenant: user.tenant,
-        empresa: empresaNombre
+        empresa: empresaNombre,
       },
     });
   } catch (error) {
