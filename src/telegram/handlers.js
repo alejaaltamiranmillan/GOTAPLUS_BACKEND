@@ -166,14 +166,12 @@ const handleConsultarCliente = async (ctx, state, text) => {
   const cedula = text;
 
   try {
-    // Aquí harías la llamada a tu API
-    const response = await axios.get(`${API_URL}/api/clients`, {
-      headers: {
-        Authorization: `Bearer ${process.env.TELEGRAM_API_TOKEN}`,
-      },
-    });
+    // Llamar al nuevo endpoint de Telegram
+    const response = await axios.get(
+      `${API_URL}/api/telegram/client/${cedula}`,
+    );
 
-    const cliente = response.data.find((c) => c.cedula === cedula);
+    const { cliente, creditos } = response.data;
 
     if (!cliente) {
       await ctx.reply(
@@ -184,20 +182,33 @@ const handleConsultarCliente = async (ctx, state, text) => {
       return;
     }
 
+    let creditosInfo = "📭 Sin créditos registrados";
+    if (creditos && creditos.length > 0) {
+      creditosInfo = creditos
+        .map(
+          (c, i) =>
+            `${i + 1}. $${c.montoPrestado.toLocaleString()} - Pagar: ${c.fechaPago} (${c.estado})`,
+        )
+        .join("\n");
+    }
+
     const info = `
 👤 *Información del Cliente:*
 • Nombre: ${cliente.nombre}
 • Cédula: ${cliente.cedula}
 • Celular: ${cliente.celular}
 • Dirección: ${cliente.direccion}
-• Cliente desde: ${new Date(cliente.createdAt).toLocaleDateString()}
+
+💳 *Créditos:*
+${creditosInfo}
     `;
 
     await ctx.reply(info, { parse_mode: "Markdown", ...backKeyboard });
     delete userState[ctx.from.id];
   } catch (error) {
     console.error("[ERROR] Error consultando cliente:", error);
-    await ctx.reply("❌ Error al consultar cliente.", backKeyboard);
+    const errorMsg = error.response?.data?.error || error.message;
+    await ctx.reply(`❌ ${errorMsg}`, backKeyboard);
     delete userState[ctx.from.id];
   }
 };
@@ -207,19 +218,89 @@ const handleRegistrarPago = async (ctx, state, text) => {
   const userId = ctx.from.id;
 
   if (state.step === 1) {
+    // Paso 1: Obtener cédula del cliente
     userState[userId].cedula_pago = text;
     userState[userId].step = 2;
 
-    await ctx.reply("¿Cuál es el monto del pago?");
+    await ctx.reply("📋 Buscando créditos pendientes del cliente...");
+
+    // Buscar cliente
+    try {
+      const clientResponse = await axios.get(
+        `${API_URL}/api/telegram/client/${text}`,
+      );
+      const { cliente, creditos } = clientResponse.data;
+
+      if (!creditos || creditos.length === 0) {
+        await ctx.reply(
+          "❌ Este cliente no tiene créditos pendientes.",
+          backKeyboard,
+        );
+        delete userState[userId];
+        return;
+      }
+
+      // Guardar créditos pendientes
+      const creditosPendientes = creditos.filter(
+        (c) => c.estado === "pendiente",
+      );
+      if (creditosPendientes.length === 0) {
+        await ctx.reply(
+          "✅ Este cliente ya pagó todos sus créditos.",
+          backKeyboard,
+        );
+        delete userState[userId];
+        return;
+      }
+
+      userState[userId].creditos = creditosPendientes;
+      userState[userId].cliente_nombre = cliente.nombre;
+
+      // Mostrar opciones de créditos
+      let mensaje = `👤 Cliente: ${cliente.nombre}\n\n💳 *Créditos Pendientes:*\n\n`;
+      creditosPendientes.forEach((c, i) => {
+        mensaje += `${i + 1}. Monto: $${c.montoPrestado.toLocaleString()}\n   Fecha: ${c.fechaPago}\n\n`;
+      });
+      mensaje += "Escribe el número del crédito a pagar:";
+
+      await ctx.reply(mensaje, { parse_mode: "Markdown" });
+    } catch (error) {
+      const errorMsg = error.response?.data?.error || error.message;
+      await ctx.reply(`❌ Error: ${errorMsg}`, backKeyboard);
+      delete userState[userId];
+    }
   } else if (state.step === 2) {
-    userState[userId].monto_pago = parseFloat(text);
-    if (isNaN(userState[userId].monto_pago)) {
+    // Paso 2: Seleccionar crédito
+    const indiceCredito = parseInt(text) - 1;
+    const creditos = userState[userId].creditos;
+
+    if (
+      isNaN(indiceCredito) ||
+      indiceCredito < 0 ||
+      indiceCredito >= creditos.length
+    ) {
       await ctx.reply("❌ Por favor ingresa un número válido.");
       return;
     }
 
+    const creditoSeleccionado = creditos[indiceCredito];
+    userState[userId].creditoId = creditoSeleccionado._id;
+    userState[userId].monto_pago = creditoSeleccionado.montoPrestado;
     userState[userId].step = 3;
-    await ctx.reply("Selecciona tipo de pago:", paymentMethodKeyboard);
+
+    const resumen = `
+✅ *Crédito Seleccionado:*
+• Monto: $${creditoSeleccionado.montoPrestado.toLocaleString()}
+• Total a Pagar: $${creditoSeleccionado.montoTotal.toLocaleString()}
+• Fecha: ${creditoSeleccionado.fechaPago}
+
+¿Confirmar pago?
+    `;
+
+    await ctx.reply(resumen, {
+      parse_mode: "Markdown",
+      ...confirmKeyboard("registrar_pago_final"),
+    });
   }
 };
 

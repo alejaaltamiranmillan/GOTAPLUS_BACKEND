@@ -1,4 +1,5 @@
 const { Telegraf } = require("telegraf");
+const axios = require("axios");
 const {
   crearClienteFlow,
   crearCreditoFlow,
@@ -11,6 +12,7 @@ const { mainKeyboard, backKeyboard } = require("./keyboards");
 
 const TOKEN = process.env.TELEGRAM_TOKEN;
 const bot = new Telegraf(TOKEN);
+const API_URL = process.env.API_URL || "http://localhost:5000";
 
 // ==================== COMANDO START ====================
 bot.start(async (ctx) => {
@@ -80,29 +82,31 @@ bot.action("confirmar_crear_cliente_final", async (ctx) => {
   }
 
   try {
-    // TODO: Llamar a la API para crear cliente
-    const clienteData = {
+    // Llamar a la API para crear cliente
+    const response = await axios.post(`${API_URL}/api/telegram/create-client`, {
       nombre: state.nombre,
       cedula: state.cedula,
       celular: state.celular,
       direccion: state.direccion,
-    };
+    });
 
-    console.log("[INFO] Cliente a crear:", clienteData);
-
-    await ctx.editMessageText(
-      "✅ *Cliente creado exitosamente!*\n\n" +
-        `📋 ${state.nombre} ha sido registrado.\n\n` +
-        "¿Qué deseas hacer ahora?",
-      { parse_mode: "Markdown", ...mainKeyboard },
-    );
+    if (response.data.success) {
+      await ctx.editMessageText(
+        "✅ *Cliente creado exitosamente!*\n\n" +
+          `📋 ${state.nombre} ha sido registrado en MongoDB.\n\n` +
+          "¿Qué deseas hacer ahora?",
+        { parse_mode: "Markdown", ...mainKeyboard },
+      );
+    } else {
+      throw new Error(response.data.error || "Error al crear cliente");
+    }
 
     delete userState[ctx.from.id];
   } catch (error) {
-    console.error("[ERROR] Error creando cliente:", error);
-    await ctx.reply(
-      "❌ Error al crear cliente. Intenta de nuevo.",
-      mainKeyboard,
+    console.error("[ERROR] Error creando cliente:", error.message);
+    await ctx.editMessageText(
+      "❌ Error: " + (error.response?.data?.error || error.message),
+      { parse_mode: "Markdown", ...mainKeyboard },
     );
     delete userState[ctx.from.id];
   }
@@ -117,30 +121,71 @@ bot.action("confirmar_crear_credito_final", async (ctx) => {
   }
 
   try {
-    // TODO: Llamar a la API para crear crédito
-    const creditoData = {
+    // Llamar a la API para crear crédito
+    const response = await axios.post(`${API_URL}/api/telegram/create-credit`, {
       cedula_cliente: state.cedula_cliente,
       montoPrestado: state.monto,
-      montoTotal: state.montoTotal,
       fechaPago: state.fechaPago,
-    };
+    });
 
-    console.log("[INFO] Crédito a crear:", creditoData);
-
-    await ctx.editMessageText(
-      "✅ *Crédito creado exitosamente!*\n\n" +
-        `💳 Monto: $${state.montoTotal.toLocaleString()}\n` +
-        `📅 Pago: ${state.fechaPago}\n\n` +
-        "¿Qué deseas hacer ahora?",
-      { parse_mode: "Markdown", ...mainKeyboard },
-    );
+    if (response.data.success) {
+      await ctx.editMessageText(
+        "✅ *Crédito creado exitosamente!*\n\n" +
+          `💳 Monto Prestado: $${state.monto.toLocaleString()}\n` +
+          `💵 Monto Total (30%): $${state.montoTotal.toLocaleString()}\n` +
+          `📅 Fecha Pago: ${state.fechaPago}\n\n` +
+          "¿Qué deseas hacer ahora?",
+        { parse_mode: "Markdown", ...mainKeyboard },
+      );
+    } else {
+      throw new Error(response.data.error || "Error al crear crédito");
+    }
 
     delete userState[ctx.from.id];
   } catch (error) {
-    console.error("[ERROR] Error creando crédito:", error);
-    await ctx.reply(
-      "❌ Error al crear crédito. Intenta de nuevo.",
-      mainKeyboard,
+    console.error("[ERROR] Error creando crédito:", error.message);
+    await ctx.editMessageText(
+      "❌ Error: " + (error.response?.data?.error || error.message),
+      { parse_mode: "Markdown", ...mainKeyboard },
+    );
+    delete userState[ctx.from.id];
+  }
+});
+
+// Confirmación de Registrar Pago
+bot.action("confirmar_registrar_pago_final", async (ctx) => {
+  const state = userState[ctx.from.id];
+  if (!state) {
+    await ctx.reply("❌ Sesión expirada. Intenta de nuevo.", mainKeyboard);
+    return;
+  }
+
+  try {
+    // Llamar a la API para registrar pago
+    const response = await axios.put(
+      `${API_URL}/api/telegram/pay-credit/${state.creditoId}`,
+      {},
+    );
+
+    if (response.data.success) {
+      await ctx.editMessageText(
+        "✅ *¡Pago Registrado Exitosamente!*\n\n" +
+          `👤 Cliente: ${state.cliente_nombre}\n` +
+          `💳 Monto Pagado: $${state.monto_pago.toLocaleString()}\n` +
+          `📅 Fecha: ${new Date().toLocaleDateString()}\n\n` +
+          "¿Qué deseas hacer ahora?",
+        { parse_mode: "Markdown", ...mainKeyboard },
+      );
+    } else {
+      throw new Error(response.data.error || "Error al registrar pago");
+    }
+
+    delete userState[ctx.from.id];
+  } catch (error) {
+    console.error("[ERROR] Error registrando pago:", error.message);
+    await ctx.editMessageText(
+      "❌ Error: " + (error.response?.data?.error || error.message),
+      { parse_mode: "Markdown", ...mainKeyboard },
     );
     delete userState[ctx.from.id];
   }

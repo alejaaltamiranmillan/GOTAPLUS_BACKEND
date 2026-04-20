@@ -1,14 +1,11 @@
 const bot = require("./bot");
 
-// Configurar webhook para Telegram
+// Configurar webhook para Telegram (Producción)
 const setupWebhook = async (webhookUrl) => {
   try {
     console.log("[INFO] Configurando webhook de Telegram:", webhookUrl);
-
-    // Aquí se configuraría el webhook real en producción
-    // await bot.telegram.setWebhook(`${webhookUrl}/api/telegram/webhook`);
-
-    console.log("[INFO] Webhook configurado correctamente");
+    await bot.telegram.setWebhook(`${webhookUrl}/api/telegram/webhook`);
+    console.log("[INFO] ✅ Webhook configurado correctamente");
   } catch (error) {
     console.error("[ERROR] Error configurando webhook:", error);
   }
