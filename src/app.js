@@ -11,6 +11,7 @@ const creditRoutes = require("./routes/credit.routes");
 const dashboardRoutes = require("./routes/dashboard.routes");
 const tenantRoutes = require("./routes/tenant.routes");
 const initRoutes = require("./routes/init.routes");
+const telegramRoutes = require("./routes/telegram.routes");
 
 const corsOptions = {
   origin: [
@@ -45,6 +46,7 @@ app.use("/api/clients", clientRoutes);
 app.use("/api/credits", creditRoutes);
 app.use("/api/dashboard", dashboardRoutes);
 app.use("/api/tenants", tenantRoutes);
+app.use("/api/telegram", telegramRoutes);
 
 app.get("/", (req, res) => {
   res.json({ message: "API TU COBRADOR funcionando 🔥" });
