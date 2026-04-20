@@ -1,6 +1,6 @@
 const app = require("./src/app");
 const connectDB = require("./src/config/db");
-const { startBotPolling, setupWebhook } = require("./src/telegram/setup");
+const { startBotPolling } = require("./src/telegram/setup");
 
 // Pre-conectar a la base de datos en startup
 connectDB().catch((err) => {
@@ -11,24 +11,13 @@ connectDB().catch((err) => {
   // No detener el servidor, dejar que intente conectar en cada request
 });
 
-// Iniciar Telegram Bot
-if (process.env.NODE_ENV === "production") {
-  // En producción (Vercel), usar webhook
-  const webhookUrl = process.env.TELEGRAM_WEBHOOK_URL;
-  if (webhookUrl) {
-    setupWebhook(webhookUrl).catch((err) => {
-      console.error("[ERROR] Failed to setup Telegram webhook:", err.message);
-    });
-  } else {
-    console.warn(
-      "[WARN] TELEGRAM_WEBHOOK_URL no configurada. Bot sin webhook.",
-    );
-  }
-} else {
+// Iniciar Telegram Bot en paralelo (sin bloquear Express)
+if (process.env.NODE_ENV !== "production") {
   // En desarrollo, usar polling
   startBotPolling().catch((err) => {
     console.error("[ERROR] Failed to start Telegram bot:", err.message);
   });
+  // No hacer await para no bloquear Express
 }
 
 // Escuchar en puerto en desarrollo
