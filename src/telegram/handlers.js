@@ -3,6 +3,7 @@ const {
   mainKeyboard,
   confirmKeyboard,
   backKeyboard,
+  cancelKeyboard,
   paymentMethodKeyboard,
 } = require("./keyboards");
 
@@ -17,7 +18,7 @@ const crearClienteFlow = async (ctx) => {
 
   await ctx.reply(
     "📋 *Crear Cliente*\n\n¿Cuál es el nombre completo del cliente?",
-    { parse_mode: "Markdown" },
+    { parse_mode: "Markdown", ...cancelKeyboard },
   );
 };
 
@@ -27,6 +28,7 @@ const crearCreditoFlow = async (ctx) => {
 
   await ctx.reply("💳 *Crear Crédito*\n\n¿Cuál es la cédula del cliente?", {
     parse_mode: "Markdown",
+    ...cancelKeyboard,
   });
 };
 
@@ -36,7 +38,7 @@ const consultarClienteFlow = async (ctx) => {
 
   await ctx.reply(
     "🔍 *Consultar Cliente*\n\n¿Cuál es la cédula del cliente a consultar?",
-    { parse_mode: "Markdown" },
+    { parse_mode: "Markdown", ...cancelKeyboard },
   );
 };
 
@@ -46,7 +48,7 @@ const registrarPagoFlow = async (ctx) => {
 
   await ctx.reply(
     "💰 *Registrar Pago*\n\n¿Cuál es la cédula del cliente que va a realizar el pago?",
-    { parse_mode: "Markdown" },
+    { parse_mode: "Markdown", ...cancelKeyboard },
   );
 };
 
@@ -92,15 +94,15 @@ const handleCrearCliente = async (ctx, state, text) => {
   if (state.step === 1) {
     userState[userId].nombre = text;
     userState[userId].step = 2;
-    await ctx.reply("¿Cuál es la cédula?");
+    await ctx.reply("¿Cuál es la cédula?", { ...cancelKeyboard });
   } else if (state.step === 2) {
     userState[userId].cedula = text;
     userState[userId].step = 3;
-    await ctx.reply("¿Cuál es el número de celular?");
+    await ctx.reply("¿Cuál es el número de celular?", { ...cancelKeyboard });
   } else if (state.step === 3) {
     userState[userId].celular = text;
     userState[userId].step = 4;
-    await ctx.reply("¿Cuál es la dirección?");
+    await ctx.reply("¿Cuál es la dirección?", { ...cancelKeyboard });
   } else if (state.step === 4) {
     userState[userId].direccion = text;
 
@@ -128,7 +130,7 @@ const handleCrearCredito = async (ctx, state, text) => {
   if (state.step === 1) {
     userState[userId].cedula_cliente = text;
     userState[userId].step = 2;
-    await ctx.reply("¿Cuál es el monto a prestar?");
+    await ctx.reply("¿Cuál es el monto a prestar?", { ...cancelKeyboard });
   } else if (state.step === 2) {
     userState[userId].monto = parseFloat(text);
     if (isNaN(userState[userId].monto)) {
@@ -140,7 +142,9 @@ const handleCrearCredito = async (ctx, state, text) => {
     userState[userId].montoTotal = montoTotal;
     userState[userId].step = 3;
 
-    await ctx.reply("¿Cuál es la fecha de pago? (DD/MM/YYYY)");
+    await ctx.reply("¿Cuál es la fecha de pago? (DD/MM/YYYY)", {
+      ...cancelKeyboard,
+    });
   } else if (state.step === 3) {
     userState[userId].fechaPago = text;
 
@@ -174,10 +178,9 @@ const handleConsultarCliente = async (ctx, state, text) => {
     const { cliente, creditos } = response.data;
 
     if (!cliente) {
-      await ctx.reply(
-        `❌ No se encontró cliente con cédula: ${cedula}`,
-        backKeyboard,
-      );
+      await ctx.reply(`❌ No se encontró cliente con cédula: ${cedula}`, {
+        ...cancelKeyboard,
+      });
       delete userState[ctx.from.id];
       return;
     }
@@ -203,12 +206,12 @@ const handleConsultarCliente = async (ctx, state, text) => {
 ${creditosInfo}
     `;
 
-    await ctx.reply(info, { parse_mode: "Markdown", ...backKeyboard });
+    await ctx.reply(info, { parse_mode: "Markdown", ...cancelKeyboard });
     delete userState[ctx.from.id];
   } catch (error) {
     console.error("[ERROR] Error consultando cliente:", error);
     const errorMsg = error.response?.data?.error || error.message;
-    await ctx.reply(`❌ ${errorMsg}`, backKeyboard);
+    await ctx.reply(`❌ ${errorMsg}`, { ...cancelKeyboard });
     delete userState[ctx.from.id];
   }
 };
@@ -232,10 +235,9 @@ const handleRegistrarPago = async (ctx, state, text) => {
       const { cliente, creditos } = clientResponse.data;
 
       if (!creditos || creditos.length === 0) {
-        await ctx.reply(
-          "❌ Este cliente no tiene créditos pendientes.",
-          backKeyboard,
-        );
+        await ctx.reply("❌ Este cliente no tiene créditos pendientes.", {
+          ...cancelKeyboard,
+        });
         delete userState[userId];
         return;
       }
@@ -245,10 +247,9 @@ const handleRegistrarPago = async (ctx, state, text) => {
         (c) => c.estado === "pendiente",
       );
       if (creditosPendientes.length === 0) {
-        await ctx.reply(
-          "✅ Este cliente ya pagó todos sus créditos.",
-          backKeyboard,
-        );
+        await ctx.reply("✅ Este cliente ya pagó todos sus créditos.", {
+          ...cancelKeyboard,
+        });
         delete userState[userId];
         return;
       }
@@ -263,10 +264,10 @@ const handleRegistrarPago = async (ctx, state, text) => {
       });
       mensaje += "Escribe el número del crédito a pagar:";
 
-      await ctx.reply(mensaje, { parse_mode: "Markdown" });
+      await ctx.reply(mensaje, { parse_mode: "Markdown", ...cancelKeyboard });
     } catch (error) {
       const errorMsg = error.response?.data?.error || error.message;
-      await ctx.reply(`❌ Error: ${errorMsg}`, backKeyboard);
+      await ctx.reply(`❌ Error: ${errorMsg}`, { ...cancelKeyboard });
       delete userState[userId];
     }
   } else if (state.step === 2) {
@@ -279,7 +280,9 @@ const handleRegistrarPago = async (ctx, state, text) => {
       indiceCredito < 0 ||
       indiceCredito >= creditos.length
     ) {
-      await ctx.reply("❌ Por favor ingresa un número válido.");
+      await ctx.reply("❌ Por favor ingresa un número válido.", {
+        ...cancelKeyboard,
+      });
       return;
     }
 

@@ -22,6 +22,11 @@ const backKeyboard = Markup.inlineKeyboard([
   [Markup.button.callback("🔙 Volver al Menú", "menu_principal")],
 ]);
 
+// Teclado para cancelar en flujos
+const cancelKeyboard = Markup.inlineKeyboard([
+  [Markup.button.callback("❌ Cancelar", "menu_principal")],
+]);
+
 // Teclado de pago
 const paymentMethodKeyboard = Markup.inlineKeyboard([
   [
@@ -35,5 +40,6 @@ module.exports = {
   mainKeyboard,
   confirmKeyboard,
   backKeyboard,
+  cancelKeyboard,
   paymentMethodKeyboard,
 };
